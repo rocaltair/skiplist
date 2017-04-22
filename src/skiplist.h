@@ -24,6 +24,9 @@ struct skiplist_s;
 typedef struct slNode_s slNode_t;
 typedef struct skiplist_s sl_t;
 
+typedef void (*slFreeCb)(void *udata, void *ctx);
+typedef int (*slCompareCb)(slNode_t *nodeA, slNode_t *nodeB, void *ctx);
+
 struct levelNode_s {
 	slNode_t *next;
 	size_t span;
@@ -37,15 +40,24 @@ struct slNode_s {
 	struct levelNode_s level[1];
 };
 
-typedef void (*slFreeCb)(void *udata, void *ctx);
-typedef int (*slCompareCb)(slNode_t *nodeA, slNode_t *nodeB, void *ctx);
+struct skiplist_s {
+	slNode_t *head;
+	slNode_t *tail;
+	int level;
+	size_t size;
+	slCompareCb comp;
+	void *udata;
+};
 
 int slRandomLevel();
 
 slNode_t * slCreateNode(int level, void *udata, double score);
 void slFreeNode(slNode_t *node, slFreeCb freeCb, void *ctx);
 
-sl_t * slCreate();
+int slInit(sl_t *sl);
+void slDestroy(sl_t *sl, slFreeCb freeCb, void *ctx);
+
+sl_t *slCreate();
 void slFree(sl_t *sl, slFreeCb freeCb, void *ctx);
 
 slCompareCb slSetCompareCb(sl_t *sl, slCompareCb comp);

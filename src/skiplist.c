@@ -4,14 +4,6 @@
 #include "skiplist.h"
 
 
-struct skiplist_s {
-	slNode_t *head;
-	slNode_t *tail;
-	slCompareCb comp;
-	int level;
-	size_t size;
-};
-
 int slRandomLevel()
 {
 	int level = 1;
@@ -34,23 +26,28 @@ static int internalComp(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 	return d < 0 ? -1 : 1;
 }
 
-sl_t * slCreate()
+int slInit(sl_t *sl)
 {
-	sl_t *sl = malloc(sizeof(*sl));
-	if (sl == NULL)
-		goto finished;
 	sl->head = slCreateNode(SKIPLIST_MAXLEVEL, NULL, DBL_MIN);
 	if (sl->head == NULL) {
-		free(sl);
-		sl = NULL;
-		goto finished;
+		return -1;
 	}
 	sl->level = 1;
 	sl->size = 0;
 	sl->head->prev = NULL;
 	sl->tail = NULL;
 	sl->comp = internalComp;
-finished:
+	return 0;
+}
+
+sl_t * slCreate()
+{
+	sl_t *sl = malloc(sizeof(*sl));
+	if (sl == NULL || slInit(sl) != 0) {
+		free(sl);
+		return NULL;
+	}
+	sl->udata = NULL;
 	return sl;
 }
 
@@ -61,7 +58,7 @@ slCompareCb slSetCompareCb(sl_t *sl, slCompareCb comp)
 	return old;
 }
 
-void slFree(sl_t *sl, slFreeCb freeCb, void *ctx)
+void slDestroy(sl_t *sl, slFreeCb freeCb, void *ctx)
 {
 	slNode_t *node;
 	slNode_t *next;
@@ -69,6 +66,11 @@ void slFree(sl_t *sl, slFreeCb freeCb, void *ctx)
 		next = node->level[0].next;
 		slFreeNode(node, freeCb, ctx);
 	}
+}
+
+void slFree(sl_t *sl, slFreeCb freeCb, void *ctx)
+{
+	slDestroy(sl, freeCb, ctx);
 	free(sl);
 }
 
@@ -165,7 +167,7 @@ static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update)
 }
 
 /**
- * call slFreeNode by yourself after slDeleteNode
+ * call slFreeNode by yourself after slDeleteNode if pNode == NULL
  */
 int slDeleteNode(sl_t *sl, slNode_t *node, void *ctx, slNode_t **pNode)
 {
@@ -197,6 +199,7 @@ slNode_t * slGetNodeByRank(sl_t *sl, int rank)
 	slNode_t *p;
 	int i;
 	p = sl->head;
+	rank++;
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL && p->level[i].span + traversed <= rank) {
 			traversed += p->level[i].span;
@@ -243,7 +246,7 @@ int slGetRank(sl_t *sl, slNode_t *node, void *ctx)
 			p = p->level[i].next;
 		}
 		if (sl->comp(p, node, ctx) == 0) {
-			return traversed;
+			return traversed - 1;
 		}
 	}
 	return sl->size;

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "skiplist.h"
+#include "../src/skiplist.h"
 
 int main(int argc, char **argv)
 {
