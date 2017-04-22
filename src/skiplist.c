@@ -62,7 +62,7 @@ void slDestroy(sl_t *sl, slFreeCb freeCb, void *ctx)
 {
 	slNode_t *node;
 	slNode_t *next;
-	for (node = sl->head; node != sl->tail; node = next) {
+	for (node = sl->head; node != NULL; node = next) {
 		next = node->level[0].next;
 		slFreeNode(node, freeCb, ctx);
 	}
