@@ -314,7 +314,7 @@ slNode_t * slLastLEThan(sl_t *sl, double score)
 	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
-		       p->level[i].next->score < score) {
+		       p->level[i].next->score <= score) {
 			p = p->level[i].next;
 		}
 	}

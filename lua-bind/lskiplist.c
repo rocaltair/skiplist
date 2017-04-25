@@ -5,6 +5,7 @@
 #include <lauxlib.h>
 #include <stddef.h>
 #include <limits.h>
+#include <float.h>
 #include "skiplist.h"
 
 #if LUA_VERSION_NUM < 502
@@ -285,6 +286,30 @@ static int lua__get_score(lua_State *L)
 	return 1;
 }
 
+static int lua__score_range(lua_State *L)
+{
+	int i;
+	slNode_t *pMin, *pMax, *node;
+	sl_t *sl = CHECK_SL(L, 1);
+	double min = luaL_checknumber(L, 2);
+	double max = luaL_optnumber(L, 3, DBL_MAX);
+	
+	luaL_argcheck(L, min < max, 3, "max should greater or equal than min");
+	pMin = slFirstGEThan(sl, min);
+	pMax = slLastLEThan(sl, max);
+	if (pMin == NULL && pMax == NULL)
+		return 0;
+	lua_getuservalue(L, 1);
+	lua_getfield(L, -1, "value_map");
+	lua_newtable(L);
+	for (node = pMin, i = 1; node != SL_NEXT(pMax); node = SL_NEXT(node)) {
+		lua_pushlightuserdata(L, (void *)node);
+		lua_rawget(L, -3);
+		lua_rawseti(L, -2, i++);
+	}
+	return 1;
+}
+
 static int lua__rank_of(lua_State *L)
 {
 	int rank;
@@ -399,6 +424,7 @@ static int opencls__skiplist(lua_State *L)
 		{"rank_of", lua__rank_of},
 		{"rank_range", lua__rank_range},
 		{"get_score", lua__get_score},
+		{"score_range", lua__score_range},
 		{"next", lua__next},
 		{"prev", lua__prev},
 		{"size", lua__size},
