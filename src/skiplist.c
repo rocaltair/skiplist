@@ -27,27 +27,23 @@ static int internalComp(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 	return d < 0 ? -1 : 1;
 }
 
-int slInit(sl_t *sl)
+void slInit(sl_t *sl)
 {
-	sl->head = slCreateNode(SKIPLIST_MAXLEVEL, NULL, DBL_MIN);
-	if (sl->head == NULL) {
-		return -1;
-	}
 	sl->level = 1;
 	sl->size = 0;
-	sl->head->prev = NULL;
 	sl->tail = NULL;
 	sl->comp = internalComp;
-	return 0;
+	slInitNode(SL_HEAD(sl), SKIPLIST_MAXLEVEL, NULL, DBL_MIN);
 }
 
 sl_t * slCreate()
 {
 	sl_t *sl = malloc(sizeof(*sl));
-	if (sl == NULL || slInit(sl) != 0) {
+	if (sl == NULL) {
 		free(sl);
 		return NULL;
 	}
+	slInit(sl);
 	sl->udata = NULL;
 	return sl;
 }
@@ -63,7 +59,7 @@ void slDestroy(sl_t *sl, slFreeCb freeCb, void *ctx)
 {
 	slNode_t *node;
 	slNode_t *next;
-	for (node = sl->head; node != NULL; node = next) {
+	for (node = SL_NEXT(SL_HEAD(sl)); node != NULL; node = next) {
 		next = node->level[0].next;
 		slFreeNode(node, freeCb, ctx);
 	}
@@ -90,7 +86,8 @@ static void slInitNode(slNode_t *node, int level, void *udata, double score)
 
 slNode_t * slCreateNode(int level, void *udata, double score)
 {
-	slNode_t *node = malloc(sizeof(*node) + sizeof(struct levelNode_s) * (level - 1));
+	size_t node_sz = sizeof(slNode_t) + sizeof(struct levelNode_s) * (level - 1);
+	slNode_t *node = malloc(node_sz);
 	if (node == NULL)
 		goto finished;
 	slInitNode(node, level, udata, score);
@@ -113,7 +110,7 @@ void slInsertNode(sl_t *sl, slNode_t *node, void *ctx)
 	slNode_t *p;
 	int rank[SKIPLIST_MAXLEVEL];
 	int i;
-	p = sl->head;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
         	rank[i] = i == (sl->level-1) ? 0 : rank[i+1];
 		while (p->level[i].next != NULL
@@ -127,7 +124,7 @@ void slInsertNode(sl_t *sl, slNode_t *node, void *ctx)
 	if (level > sl->level) {
 		for (i = sl->level; i < level; i++) {
 			rank[i] = 0;
-			update[i] = sl->head;
+			update[i] = SL_HEAD(sl);
 			update[i]->level[i].span = sl->size;
 		}
 		sl->level = level;
@@ -142,7 +139,7 @@ void slInsertNode(sl_t *sl, slNode_t *node, void *ctx)
 	for (i = level; i < sl->level; i++) {
 		update[i]->level[i].span++;
 	}
-	node->prev = (update[0] == sl->head) ? NULL : update[0];
+	node->prev = (update[0] == SL_HEAD(sl)) ? NULL : update[0];
 	if (node->level[0].next)
 		node->level[0].next->prev = node;
 	else
@@ -166,7 +163,7 @@ static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update)
 	} else {
 		sl->tail = node->prev;
 	}
-	while(sl->level > 1 && sl->head->level[sl->level-1].next == NULL)
+	while(sl->level > 1 && SL_HEAD(sl)->level[sl->level-1].next == NULL)
 		sl->level--;
 	sl->size--;
 }
@@ -179,7 +176,7 @@ int slDeleteNode(sl_t *sl, slNode_t *node, void *ctx, slNode_t **pNode)
 	int i;
 	slNode_t *p;
 	slNode_t *update[SKIPLIST_MAXLEVEL];
-	p = sl->head;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
 		       sl->comp(p->level[i].next, node, ctx) < 0) {
@@ -203,7 +200,7 @@ slNode_t * slGetNodeByRank(sl_t *sl, int rank)
 	int traversed = 0;
 	slNode_t *p;
 	int i;
-	p = sl->head;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL && p->level[i].span + traversed <= rank) {
 			traversed += p->level[i].span;
@@ -242,7 +239,7 @@ int slGetRank(sl_t *sl, slNode_t *node, void *ctx)
 	int i;
 	if (node == NULL)
 		return sl->size + 1;
-	p = sl->head;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
 			sl->comp(p->level[i].next, node, ctx) <= 0) {
@@ -263,7 +260,7 @@ int slDeleteByRankRange(sl_t *sl, int rankMin, int rankMax, slFreeCb freeCb, voi
 	int removed = 0;
 	int i;
 
-	node = sl->head;
+	node = SL_HEAD(sl);
 	for (i = sl->level-1; i >= 0; i--) {
 		while (node->level[i].next && (traversed + node->level[i].span) < rankMin) {
 			traversed += node->level[i].span;
@@ -292,7 +289,7 @@ slNode_t * slFirstGEThan(sl_t *sl, double score)
 {
 	int i;
 	slNode_t *p;
-	p = sl->head;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
 		       p->level[i].next->score < score) {
@@ -309,7 +306,7 @@ slNode_t * slLastLEThan(sl_t *sl, double score)
 {
 	int i;
 	slNode_t *p;
-	p = sl->head;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
 		       p->level[i].next->score < score) {

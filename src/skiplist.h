@@ -17,10 +17,13 @@ extern "C" {
 	     node != NULL && n <= rankMax - rankMin + 1; \
 	     node = SL_NEXT(node), n++)
 
+#define SL_HEAD(sl) ((slNode_t *)&(sl->head))
+
 #define SL_FOREACH(sl, node, n) \
-	for (node = SL_NEXT((sl->head)), n = 1; \
+	for (node = SL_NEXT(SL_HEAD(sl)), n = 1; \
 	     node != NULL; \
 	     node = SL_NEXT(node), n++)
+
 
 struct slNode_s;
 struct skiplist_s;
@@ -44,8 +47,16 @@ struct slNode_s {
 	struct levelNode_s level[1];
 };
 
+struct slNodeMax_s {
+	double score;
+	void *udata;
+	slNode_t *prev;
+	int levelSize;
+	struct levelNode_s level[SKIPLIST_MAXLEVEL];
+};
+
 struct skiplist_s {
-	slNode_t *head;
+	struct slNodeMax_s head;
 	slNode_t *tail;
 	int level;
 	size_t size;
@@ -61,14 +72,21 @@ void slFreeNode(slNode_t *node, slFreeCb freeCb, void *ctx);
 /**
  * you can use slInit to init a struct pointer by yourself
  * */
-int slInit(sl_t *sl);
+void slInit(sl_t *sl);
 
 /**
- *
+ * just free every node inside of sl, do not free sl;
  */ 
 void slDestroy(sl_t *sl, slFreeCb freeCb, void *ctx);
 
+/**
+ * alloc and init sl;
+ */
 sl_t *slCreate();
+
+/**
+ * slDestroy and free sl;
+ */
 void slFree(sl_t *sl, slFreeCb freeCb, void *ctx);
 
 /**
