@@ -155,6 +155,7 @@ static int lua__insert(lua_State *L)
 	if (node == NULL)
 		return luaL_error(L, "no memory in lua__insert");
 
+	node->udata = node;
 	lua_getuservalue(L, 1);
 		lua_getfield(L, -1, "node_map");
 		lua_pushvalue(L, 2);
@@ -227,7 +228,7 @@ static int lua__get_by_rank(lua_State *L)
 		lua_pushliteral(L, "err index");
 		return 2;
 	}
-	node = slGetNodeByRank(sl, rank - 1);
+	node = slGetNodeByRank(sl, rank);
 	if (node == NULL)
 		return 0;
 	lua_getuservalue(L, 1);
@@ -247,7 +248,7 @@ static int lua__del_by_rank(lua_State *L)
 		lua_pushliteral(L, "err index");
 		return 2;
 	}
-	node = slGetNodeByRank(sl, rank - 1);
+	node = slGetNodeByRank(sl, rank);
 	if (node == NULL)
 		return 0;
 	lua_getuservalue(L, 1);
@@ -292,7 +293,7 @@ static int lua__rank_of(lua_State *L)
 	if (node == NULL)
 		return 0;
 	rank = slGetRank(sl, node, L);
-	lua_pushinteger(L, rank + 1);
+	lua_pushinteger(L, rank);
 	return 1;
 }
 
@@ -305,7 +306,6 @@ static int lua__rank_range(lua_State *L)
 	int rankMax = luaL_optinteger(L, 3, INT_MAX);
 
 	rankMax = rankMax >= sl->size ? sl->size : rankMax;
-	rankMin--;
 
 	if (rankMin < 0 || rankMin > rankMax)
 		return luaL_error(L, "range error!");
@@ -317,8 +317,73 @@ static int lua__rank_range(lua_State *L)
 	SL_FOREACH_RANGE(sl, rankMin, rankMax, node, n) {
 		lua_pushlightuserdata(L, (void *)node);
 		lua_rawget(L, -3);
-		lua_rawseti(L, -2, rankMin + n + 1);
+		lua_rawseti(L, -2, rankMin + n - 1);
 	}
+	return 1;
+}
+
+static int lua__next(lua_State *L)
+{
+	slNode_t *next = NULL;
+	sl_t *sl = CHECK_SL(L, 1);
+	slNode_t *node = luac__get_node(L, 1, 2);
+	(void)sl;
+	if (node == NULL)
+		return 0;
+	next = SL_NEXT(node);
+	lua_getuservalue(L, 1);
+	lua_getfield(L, -1, "value_map");
+	lua_pushlightuserdata(L, (void *)next);
+	lua_rawget(L, -2);
+	return 1;
+}
+
+static int lua__prev(lua_State *L)
+{
+	slNode_t *prev = NULL;
+	sl_t *sl = CHECK_SL(L, 1);
+	slNode_t *node = luac__get_node(L, 1, 2);
+	(void)sl;
+	if (node == NULL)
+		return 0;
+	prev = SL_PREV(node);
+	lua_getuservalue(L, 1);
+	lua_getfield(L, -1, "value_map");
+	lua_pushlightuserdata(L, (void *)prev);
+	lua_rawget(L, -2);
+	return 0;
+}
+
+void deleteCb(void *udata, void *ctx)
+{
+	lua_State *L = ctx;
+	int top = lua_gettop(L);
+	/* node->udata = node, see lua__insert */ 
+	lua_pushlightuserdata(L, udata);
+	lua_rawget(L, 5);
+	lua_pushnil(L);
+	lua_rawset(L, 6);
+	lua_pushnil(L);
+	/* node->udata = node, see lua__insert */ 
+	lua_pushlightuserdata(L, udata);
+	lua_rawset(L, 5);
+	lua_settop(L, top);
+}
+
+static int lua__del_rank_range(lua_State *L)
+{
+	sl_t *sl = CHECK_SL(L, 1);
+	int min = luaL_checkinteger(L, 2);
+	int max = luaL_optinteger(L, 3, min);
+	int n;
+	luaL_argcheck(L, 1 <= min && min <= max && min <= sl->size, 2, "min [1, size]");
+	luaL_argcheck(L, 1 <= max && min <= max && max <= sl->size, 3, "max [1, size]");
+	lua_settop(L, 3);
+	lua_getuservalue(L, 1);
+	lua_getfield(L, -1, "value_map");		/*idx = 5*/
+	lua_getfield(L, -2, "node_map");		/*idx = 6*/
+	n = slDeleteByRankRange(sl, min, max, deleteCb, L);
+	lua_pushinteger(L, n);
 	return 1;
 }
 
@@ -330,9 +395,12 @@ static int opencls__skiplist(lua_State *L)
 		{"exists", lua__exists},
 		{"get_by_rank", lua__get_by_rank},
 		{"del_by_rank", lua__del_by_rank},
+		{"del_by_rank_range", lua__del_rank_range},
 		{"rank_of", lua__rank_of},
 		{"rank_range", lua__rank_range},
 		{"get_score", lua__get_score},
+		{"next", lua__next},
+		{"prev", lua__prev},
 		{"size", lua__size},
 		{NULL, NULL},
 	};
