@@ -1,9 +1,12 @@
 #include <stdlib.h>
 #include <float.h>
 #include <stddef.h>
+#include <assert.h>
 #include "skiplist.h"
 
 static void slInitNode(slNode_t *node, int level, void *udata, double score);
+static int internalComp(slNode_t *nodeA, slNode_t *nodeB, void *ctx);
+static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update);
 
 int slRandomLevel()
 {
@@ -13,15 +16,15 @@ int slRandomLevel()
 	return (level < SKIPLIST_MAXLEVEL) ? level : SKIPLIST_MAXLEVEL;
 }
 
-static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update);
-
 static int internalComp(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 {
 	ptrdiff_t d;
 	if (nodeA->score != nodeB->score)
 		return nodeA->score - nodeB->score < 0 ? -1 : 1;
+
 	d = (const char *)(nodeA->udata == NULL ? nodeA : nodeA->udata)
 			- (const char *)(nodeB->udata == NULL ? nodeB : nodeB->udata);
+
 	if (d == 0)
 		return 0;
 	return d < 0 ? -1 : 1;
@@ -40,7 +43,6 @@ sl_t * slCreate()
 {
 	sl_t *sl = malloc(sizeof(*sl));
 	if (sl == NULL) {
-		free(sl);
 		return NULL;
 	}
 	slInit(sl);
@@ -259,6 +261,9 @@ int slDeleteByRankRange(sl_t *sl, int rankMin, int rankMax, slFreeCb freeCb, voi
 	int traversed = 0;
 	int removed = 0;
 	int i;
+
+	assert(1 <= rankMin && rankMin <= rankMax && rankMin <= sl->size);
+	assert(1 <= rankMax && rankMin <= rankMax && rankMax <= sl->size);
 
 	node = SL_HEAD(sl);
 	for (i = sl->level-1; i >= 0; i--) {
