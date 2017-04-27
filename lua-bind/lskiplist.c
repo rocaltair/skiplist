@@ -168,10 +168,30 @@ static int lua__insert(lua_State *L)
 
 static int lua__update(lua_State *L)
 {
+	int level;
+	double score;
 	sl_t *sl = CHECK_SL(L, 1);
 	slNode_t *node = luac__get_node(L, 1, 2);
-	double score = luaL_checknumber(L, 3);
-	int level;
+	if (lua_isnoneornil(L, 3) && node != NULL) {
+		slDeleteNode(sl, node, L, NULL);
+
+		lua_getuservalue(L, 1);
+
+		lua_getfield(L, -1, "node_map");
+		lua_pushvalue(L, 2);
+		lua_pushnil(L);
+		lua_rawset(L, -3);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "value_map");
+		lua_pushlightuserdata(L, (void *)node);
+		lua_pushnil(L);
+		lua_rawset(L, -3);
+		lua_pop(L, 1);
+		lua_settop(L, 3);
+		return 0;
+	}
+	score = luaL_checknumber(L, 3);
 	if (node != NULL) {
 		slNode_t *pNode = NULL;
 		slDeleteNode(sl, node, L, &pNode);
@@ -470,7 +490,7 @@ static int lua__prev(lua_State *L)
 	return 0;
 }
 
-void deleteCb(void *udata, void *ctx)
+static void deleteCb(void *udata, void *ctx)
 {
 	lua_State *L = ctx;
 	int top = lua_gettop(L);

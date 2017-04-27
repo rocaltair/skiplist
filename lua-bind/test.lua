@@ -42,6 +42,7 @@ sl[234] = 127
 print("score of 7", sl[7])
 
 sl[234] = 125
+sl[3] = nil
 
 print("size", #sl, sl:size())
 for i, v in pairs(sl:score_range(20, 679)) do
