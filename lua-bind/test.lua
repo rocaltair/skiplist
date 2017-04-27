@@ -36,6 +36,9 @@ sl:update(7, -1)
 for i, v in pairs(sl:rank_range()) do
 	print("rank", i, v, sl:get_score(v))
 end
+for rank, v, score in sl:rank_pairs(1, 5) do
+	print("rank_pairs", rank, v, score)
+end
 sl:update(7, 128)
 sl:update(99, 128)
 sl[234] = 127
@@ -45,11 +48,8 @@ sl[234] = 125
 sl[3] = nil
 
 print("size", #sl, sl:size())
+local srange, rankMin = sl:score_range(20, 679)
 for i, v in pairs(sl:score_range(20, 679)) do
-	print("score range of", i, v, sl:get_score(v))
+	print("score range of", rankMin + i - 1, v, sl:get_score(v))
 end
 
-
-for rank, v, score in sl:rank_pairs(1, 5) do
-	print("rank_pairs", rank, v, score)
-end

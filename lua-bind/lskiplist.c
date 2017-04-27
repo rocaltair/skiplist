@@ -287,21 +287,28 @@ static int lua__size(lua_State *L)
 	return 1;
 }
 
-static int lua__iterator(lua_State *L)
+static int lua__rank_iterator(lua_State *L)
 {
 	slNode_t *node;
+	slNode_t *next;
 	sl_t *sl = CHECK_SL(L, lua_upvalueindex(1));
 	int last = (int)lua_tointeger(L, lua_upvalueindex(2));
 	int rankMax = (int)lua_tointeger(L, lua_upvalueindex(3));
+	node = (slNode_t *)lua_touserdata(L, lua_upvalueindex(4));
+	(void) sl;
 	if (last > rankMax)
 		return 0;
 	
+	if (node == NULL)
+		return 0;
+
 	lua_pushinteger(L, last + 1);
 	lua_replace(L, lua_upvalueindex(2));
 
-	node = slGetNodeByRank(sl, last);
-	if (node == NULL)
-		return 0;
+	next = SL_NEXT(node);
+	lua_pushlightuserdata(L, (void *)next);
+	lua_replace(L, lua_upvalueindex(4));
+
 	lua_getuservalue(L, lua_upvalueindex(1));
 	lua_getfield(L, -1, "value_map");
 	lua_pushlightuserdata(L, (void *)node);
@@ -314,19 +321,22 @@ static int lua__iterator(lua_State *L)
 
 static int lua__rank_pairs(lua_State *L)
 {
+	slNode_t *node;
 	sl_t *sl = CHECK_SL(L, 1);
 	int rankMin = luaL_optinteger(L, 2, 1);
-	int rankMax = luaL_optinteger(L, 3, INT_MAX);
+	int rankMax = luaL_optinteger(L, 3, sl->size);
 
-	rankMax = rankMax >= sl->size ? sl->size : rankMax;
+	if (rankMin < 0 || rankMin > rankMax || rankMax > sl->size)
+		return luaL_error(L,
+				  "range error! range should be[1, %d],but[%d, %d]",
+				  sl->size, rankMin, rankMax);
 
-	if (rankMin < 0 || rankMin > rankMax)
-		return luaL_error(L, "range error!");
-
+	node = slGetNodeByRank(sl, rankMin);
 	lua_pushvalue(L, 1);
 	lua_pushinteger(L, rankMin);
 	lua_pushinteger(L, rankMax);
-	lua_pushcclosure(L, lua__iterator, 3);
+	lua_pushlightuserdata(L, (void *)node);
+	lua_pushcclosure(L, lua__rank_iterator, 4);
 	return 1;
 }
 
@@ -418,7 +428,8 @@ static int lua__score_range(lua_State *L)
 		lua_rawget(L, -3);
 		lua_rawseti(L, -2, i++);
 	}
-	return 1;
+	lua_pushinteger(L, slGetRank(sl, pMin, L));
+	return 2;
 }
 
 static int lua__rank_of(lua_State *L)
