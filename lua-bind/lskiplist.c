@@ -357,7 +357,8 @@ static int lua__get_by_rank(lua_State *L)
 	lua_getfield(L, -1, "value_map");
 	lua_pushlightuserdata(L, (void *)node);
 	lua_rawget(L, -2);
-	return 1;
+	lua_pushnumber(L, node->score);
+	return 2;
 }
 
 static int lua__del_by_rank(lua_State *L)

@@ -49,7 +49,7 @@ sl[3] = nil
 
 print("size", #sl, sl:size())
 local srange, rankMin = sl:score_range(20, 679)
-for i, v in pairs(sl:score_range(20, 679)) do
+for i, v in pairs(srange) do
 	print("score range of", rankMin + i - 1, v, sl:get_score(v))
 end
 
