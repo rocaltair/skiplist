@@ -11,7 +11,7 @@ static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update);
 int slRandomLevel()
 {
 	int level = 1;
-	while((random() & 0xffff) < (SKIPLIST_P * 0xffff))
+	while((rand() & 0xffff) < (SKIPLIST_P * 0xffff))
 		level += 1;
 	return (level < SKIPLIST_MAXLEVEL) ? level : SKIPLIST_MAXLEVEL;
 }

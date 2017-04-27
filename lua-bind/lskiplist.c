@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <limits.h>
 #include <float.h>
+#include <assert.h>
 #include "skiplist.h"
 
 #if LUA_VERSION_NUM < 502
@@ -132,28 +133,16 @@ static int lua__insert(lua_State *L)
 	double score;
 	sl_t *sl;
 	slNode_t *node;
-	int level = slRandomLevel();
+	int level;
 	
 	sl = CHECK_SL(L, 1);
-
-	luaL_argcheck(L, !lua_isnoneornil(L, 2), 2,
-		      "number|string|table|udata required!");
-
+	node = luac__get_node(L, 1, 2);
 	score = luaL_optnumber(L, 3, 0.0);
+	if (node != NULL)
+		return luaL_error(L, "value exists");
 
-	do {
-		lua_getuservalue(L, 1);
-		lua_getfield(L, -1, "node_map");
-		lua_pushvalue(L, 2);
-		lua_rawget(L, -2);
-		if (!lua_isnil(L, -1))
-			return luaL_error(L, "value exists!");
-		lua_pop(L, 3);
-	} while(0);
-
-	node = slCreateNode(level, NULL, score);
-
-	if (node == NULL)
+	level = slRandomLevel();
+	if ((node = slCreateNode(level, NULL, score)) == NULL)
 		return luaL_error(L, "no memory in lua__insert");
 
 	node->udata = node;
@@ -175,12 +164,50 @@ static int lua__insert(lua_State *L)
 	return 1;
 }
 
+static int lua__update(lua_State *L)
+{
+	sl_t *sl = CHECK_SL(L, 1);
+	slNode_t *node = luac__get_node(L, 1, 2);
+	double score = luaL_checknumber(L, 3);
+	int level;
+	if (node != NULL) {
+		slNode_t *pNode = NULL;
+		slDeleteNode(sl, node, L, &pNode);
+		assert(pNode == node);
+		node->score = score;
+	} else {
+		level = slRandomLevel();
+		if ((node = slCreateNode(level, NULL, score)) == NULL) {
+			return luaL_error(L, "no memory in lua__update");
+		}
+		node->udata = node;
+		lua_getuservalue(L, 1);
+			lua_getfield(L, -1, "node_map");
+			lua_pushvalue(L, 2);
+			lua_pushlightuserdata(L, (void *)node);
+			lua_rawset(L, -3);
+			lua_pop(L, 1);
+
+			lua_getfield(L, -1, "value_map");
+			lua_pushlightuserdata(L, (void *)node);
+			lua_pushvalue(L, 2);
+			lua_rawset(L, -3);
+			lua_pop(L, 1);
+	}
+	slInsertNode(sl, node, L);
+	lua_pushlightuserdata(L, node);
+	return 1;
+}
+
+
 static int lua__delete(lua_State *L)
 {
 	sl_t *sl = CHECK_SL(L, 1);
 	slNode_t *node = luac__get_node(L, 1, 2);
 	if (node == NULL)
 		return 0;
+
+	slDeleteNode(sl, node, L, NULL);
 
 	lua_getuservalue(L, 1);
 
@@ -195,8 +222,6 @@ static int lua__delete(lua_State *L)
 	lua_pushnil(L);
 	lua_rawset(L, -3);
 	lua_pop(L, 1);
-
-	slDeleteNode(sl, node, L, NULL);
 	
 	lua_pushboolean(L, 1);
 	return 1;
@@ -416,6 +441,7 @@ static int opencls__skiplist(lua_State *L)
 {
 	luaL_Reg lmethods[] = {
 		{"insert", lua__insert},
+		{"update", lua__update},
 		{"delete", lua__delete},
 		{"exists", lua__exists},
 		{"get_by_rank", lua__get_by_rank},

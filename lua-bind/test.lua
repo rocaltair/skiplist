@@ -32,6 +32,12 @@ for rank = s, e do
 end
 
 print(sl:rank_of(7))
+sl:update(7, -1)
+for i, v in pairs(sl:rank_range()) do
+	print("rank", i, v, sl:get_score(v))
+end
+sl:update(7, 128)
+sl:update(99, 128)
 
 for i, v in pairs(sl:score_range(20, 679)) do
 	print("score range of", i, v, sl:get_score(v))
