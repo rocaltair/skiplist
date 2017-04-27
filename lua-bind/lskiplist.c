@@ -21,6 +21,8 @@
 # endif
 #endif
 
+#define ENABLE_LSL_INDEX 1
+
 #define CLASS_SKIPLIST "cls{skiplist}"
 #define CHECK_SL(L, n) ((sl_t *)luaL_checkudata(L, n, CLASS_SKIPLIST))
 
@@ -199,6 +201,28 @@ static int lua__update(lua_State *L)
 	return 1;
 }
 
+#if ENABLE_LSL_INDEX
+static int lua__index(lua_State *L)
+{
+	slNode_t *node;
+	sl_t *sl = CHECK_SL(L, 1);
+	(void)sl;
+	if (lua_type(L, 2) == LUA_TSTRING) {
+		lua_pushvalue(L, lua_upvalueindex(1));
+		lua_pushvalue(L, 2);
+		lua_rawget(L, -2);
+		if (!lua_isnil(L, -1))
+			return 1;
+	}
+	node = luac__get_node(L, 1, 2);
+	if (node == NULL) {
+		lua_pushnil(L);
+		return 0;
+	}
+	lua_pushnumber(L, node->score);
+	return 1;
+}
+#endif
 
 static int lua__delete(lua_State *L)
 {
@@ -243,6 +267,48 @@ static int lua__size(lua_State *L)
 	return 1;
 }
 
+static int lua__iterator(lua_State *L)
+{
+	slNode_t *node;
+	sl_t *sl = CHECK_SL(L, lua_upvalueindex(1));
+	int last = (int)lua_tointeger(L, lua_upvalueindex(2));
+	int rankMax = (int)lua_tointeger(L, lua_upvalueindex(3));
+	if (last > rankMax)
+		return 0;
+	
+	lua_pushinteger(L, last + 1);
+	lua_replace(L, lua_upvalueindex(2));
+
+	node = slGetNodeByRank(sl, last);
+	if (node == NULL)
+		return 0;
+	lua_getuservalue(L, lua_upvalueindex(1));
+	lua_getfield(L, -1, "value_map");
+	lua_pushlightuserdata(L, (void *)node);
+	lua_rawget(L, -2);
+	lua_pushinteger(L, last);
+	lua_insert(L, -2);
+	lua_pushnumber(L, node->score);
+	return 3;
+}
+
+static int lua__rank_pairs(lua_State *L)
+{
+	sl_t *sl = CHECK_SL(L, 1);
+	int rankMin = luaL_optinteger(L, 2, 1);
+	int rankMax = luaL_optinteger(L, 3, INT_MAX);
+
+	rankMax = rankMax >= sl->size ? sl->size : rankMax;
+
+	if (rankMin < 0 || rankMin > rankMax)
+		return luaL_error(L, "range error!");
+
+	lua_pushvalue(L, 1);
+	lua_pushinteger(L, rankMin);
+	lua_pushinteger(L, rankMax);
+	lua_pushcclosure(L, lua__iterator, 3);
+	return 1;
+}
 
 static int lua__get_by_rank(lua_State *L)
 {
@@ -454,12 +520,17 @@ static int opencls__skiplist(lua_State *L)
 		{"next", lua__next},
 		{"prev", lua__prev},
 		{"size", lua__size},
+		{"rank_pairs", lua__rank_pairs},
 		{NULL, NULL},
 	};
 	luaL_newmetatable(L, CLASS_SKIPLIST);
-	lua_newtable(L);
-	luaL_register(L, NULL, lmethods);
+	luaL_newlib(L, lmethods);
+#if ENABLE_LSL_INDEX
+	lua_pushcclosure(L, lua__index, 1);
+#endif
 	lua_setfield(L, -2, "__index");
+	lua_pushcfunction(L, lua__update);
+	lua_setfield(L, -2, "__newindex");
 	lua_pushcfunction(L, lua__skiplist_gc);
 	lua_setfield (L, -2, "__gc");
 	lua_pushcfunction(L, lua__size);

@@ -38,7 +38,17 @@ for i, v in pairs(sl:rank_range()) do
 end
 sl:update(7, 128)
 sl:update(99, 128)
+sl[234] = 127
+print("score of 7", sl[7])
 
+sl[234] = 125
+
+print("size", #sl, sl:size())
 for i, v in pairs(sl:score_range(20, 679)) do
 	print("score range of", i, v, sl:get_score(v))
+end
+
+
+for rank, v, score in sl:rank_pairs(1, 5) do
+	print("rank_pairs", rank, v, score)
 end

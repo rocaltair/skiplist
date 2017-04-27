@@ -3,7 +3,6 @@
 #include "../src/skiplist.h"
 
 #include <sys/time.h>
-#include <unistd.h>
 
 double timenow()
 {
@@ -17,7 +16,7 @@ int main(int argc, char **argv)
 	int i;
 	slNode_t *pNode;
 	sl_t *sl = slCreate();
-	int totalSize = 100000000;
+	int totalSize = 1000000;
 
 	double s;
 	s = timenow();
@@ -56,7 +55,6 @@ int main(int argc, char **argv)
 	SL_FOREACH_RANGE(sl, 1, 5, pNode, i) {
 		printf("i=%d, p=%p %lf\n", i, (void *)pNode, pNode->score);
 	}
-	sleep(1000);
 	slFree(sl, NULL, NULL);
 	return 0;
 }
