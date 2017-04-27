@@ -42,9 +42,6 @@ insert 1000k 1.2 seconds
 
 search random 1000k 0.3 seconds
 
-## lua-bind
-see [test](lua-bind/test.lua)
-
 ## API for C
 
 ### int slRandomLevel();
@@ -108,6 +105,9 @@ greater or equal than score;
 
 ### slNode_t * slLastLEThan(sl_t *sl, double score);
 less or equal than score;
+
+## lua-bind
+see [test](lua-bind/test.lua)
 
 ## API for Lua
 
