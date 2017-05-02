@@ -222,8 +222,8 @@ int slGetNodesRankRange(sl_t *sl,
 	int n = 0;
 	slNode_t *p;
 	SL_FOREACH_RANGE(sl, rankMin, rankMax, p, n) {
-		nodeArr[n] = p;
-		if (n + 1 >= sz)
+		nodeArr[n - 1] = p;
+		if (n >= sz)
 			break;
 	}
 	return n;
