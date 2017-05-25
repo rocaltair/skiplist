@@ -252,7 +252,7 @@ int slGetRank(sl_t *sl, slNode_t *node, void *ctx)
 			return traversed;
 		}
 	}
-	return sl->size;
+	return sl->size + 1;
 }
 
 int slDeleteByRankRange(sl_t *sl, int rankMin, int rankMax, slFreeCb freeCb, void *ctx)
