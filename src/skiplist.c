@@ -222,8 +222,8 @@ int slGetNodesRankRange(sl_t *sl,
 	int n = 0;
 	slNode_t *p;
 	SL_FOREACH_RANGE(sl, rankMin, rankMax, p, n) {
-		nodeArr[n - 1] = p;
-		if (n >= sz)
+		nodeArr[n] = p;
+		if (n + 1 >= sz)
 			break;
 	}
 	return n;
@@ -252,7 +252,7 @@ int slGetRank(sl_t *sl, slNode_t *node, void *ctx)
 			return traversed;
 		}
 	}
-	return sl->size + 1;
+	return sl->size;
 }
 
 int slDeleteByRankRange(sl_t *sl, int rankMin, int rankMax, slFreeCb freeCb, void *ctx)

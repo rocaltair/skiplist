@@ -350,7 +350,13 @@ static int lua__get_by_rank(lua_State *L)
 		lua_pushliteral(L, "err index");
 		return 2;
 	}
-	node = slGetNodeByRank(sl, rank);
+	if (rank == 1) {
+		node = SL_FIRST(sl);
+	} else if (rank == sl->size) {
+		node = SL_LAST(sl);
+	} else {
+		node = slGetNodeByRank(sl, rank);
+	}
 	if (node == NULL)
 		return 0;
 	lua_getuservalue(L, 1);
@@ -371,7 +377,13 @@ static int lua__del_by_rank(lua_State *L)
 		lua_pushliteral(L, "err index");
 		return 2;
 	}
-	node = slGetNodeByRank(sl, rank);
+	if (rank == 1) {
+		node = SL_FIRST(sl);
+	} else if (rank == sl->size) {
+		node = SL_LAST(sl);
+	} else {
+		node = slGetNodeByRank(sl, rank);
+	}
 	if (node == NULL)
 		return 0;
 	lua_getuservalue(L, 1);
@@ -499,7 +511,7 @@ static int lua__prev(lua_State *L)
 	lua_getfield(L, -1, "value_map");
 	lua_pushlightuserdata(L, (void *)prev);
 	lua_rawget(L, -2);
-	return 0;
+	return 1;
 }
 
 static void deleteCb(void *udata, void *ctx)

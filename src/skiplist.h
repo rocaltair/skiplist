@@ -19,6 +19,9 @@ extern "C" {
 
 #define SL_HEAD(sl) ((slNode_t *)&(sl->head))
 
+#define SL_FIRST(sl) (SL_NEXT(SL_HEAD(sl)))
+#define SL_LAST(sl) ((slNode_t *)sl->tail)
+
 #define SL_FOREACH(sl, node, n) \
 	for (node = SL_NEXT(SL_HEAD(sl)), n = 1; \
 	     node != NULL; \
