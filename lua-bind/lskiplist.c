@@ -477,7 +477,7 @@ static int lua__rank_range(lua_State *L)
 	SL_FOREACH_RANGE(sl, rankMin, rankMax, node, n) {
 		lua_pushlightuserdata(L, (void *)node);
 		lua_rawget(L, -3);
-		lua_rawseti(L, -2, rankMin + n - 1);
+		lua_rawseti(L, -2, rankMin + n);
 	}
 	return 1;
 }

@@ -12,20 +12,20 @@ extern "C" {
 #define SL_NEXT(node) ((node)->level[0].next)
 #define SL_PREV(node) ((node)->prev)
 
-#define SL_FOREACH_RANGE(sl, rankMin, rankMax, node, n) \
-	for (node = slGetNodeByRank(sl, rankMin), n = 1; \
-	     node != NULL && n <= rankMax - rankMin + 1; \
-	     node = SL_NEXT(node), n++)
-
 #define SL_HEAD(sl) ((slNode_t *)&(sl->head))
 
 #define SL_FIRST(sl) (SL_NEXT(SL_HEAD(sl)))
 #define SL_LAST(sl) ((slNode_t *)sl->tail)
 
-#define SL_FOREACH(sl, node, n) \
-	for (node = SL_NEXT(SL_HEAD(sl)), n = 1; \
-	     node != NULL; \
+#define SL_FOREACH_RANGE(sl, rankMin, rankMax, node, n) \
+	for (node = slGetNodeByRank(sl, rankMin), n = 0; \
+	     node != NULL && n <= rankMax - rankMin; \
 	     node = SL_NEXT(node), n++)
+
+#define SL_FOREACH(sl, node) \
+	for (node = SL_NEXT(SL_HEAD(sl)); \
+	     node != NULL; \
+	     node = SL_NEXT(node))
 
 
 struct slNode_s;
