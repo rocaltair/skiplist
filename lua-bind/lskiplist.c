@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <float.h>
 #include <assert.h>
+#include <math.h>
 #include "skiplist.h"
 
 #if LUA_VERSION_NUM < 502
@@ -64,6 +65,7 @@ static int comp(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 	ptrdiff_t diff;
 	int idiff;
 	int fret, ret;
+	double retf;
 
 	(void)sl;
 	lua_checkstack(L, 9);
@@ -91,7 +93,13 @@ static int comp(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 	if (fret != 0)
 		return luaL_error(L, "comp error %s", lua_tostring(L, -1));
 	
-	ret = lua_tointeger(L, -1);
+	retf = lua_tonumber(L, -1);
+	if (fabs(retf) < 1e-6)
+		ret = 0;
+	else if (retf > 0)
+		ret = 1;
+	else
+		ret = -1;
 	
 	lua_settop(L, top);
 	return ret;
