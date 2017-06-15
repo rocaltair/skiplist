@@ -116,12 +116,12 @@ see [benchemark](lua-bind/benchmark.lua)
 on macOS serria 10.12.2, macbook Mid-2012, 2.5GHz Intel Core i5
 
 ```
-insert, create() size=100000, time=0.74824
-update, sl:size() == 100000, update cnt=100000 time=1.43351
-rank_range sl:size() == 100000,cnt=100000(x, x+50) time=1.07677
-rank_of sl:size() == 100000,cnt=100000,time=0.96903
-get_by_rank sl:size() == 100000,cnt=100000,time=0.11332
-delete sl:size() == 100000,cnt=100000,time=0.69354
+insert, create() size=100000, time=0.97777
+update, sl:size() == 100000, update cnt=100000 time=1.86796
+rank_range sl:size() == 100000,cnt=100000(x, x+50) time=1.14272
+rank_of sl:size() == 100000,cnt=100000,time=1.31014
+get_by_rank sl:size() == 100000,cnt=100000,time=0.13249
+delete sl:size() == 100000,cnt=100000,time=0.96182
 ```
 
 ## API for Lua
