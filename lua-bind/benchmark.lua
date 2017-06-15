@@ -40,6 +40,13 @@ function rank_of(test_count, map_len)
 	end
 end
 
+function get_by_rank(test_count, map_len)
+	for i = 1, test_count do
+		local r = math.random(1, map_len)
+		sl:get_by_rank(r)
+	end
+end
+
 function delete()
 	local len = #map
 	for i=1, len do
@@ -60,6 +67,7 @@ function main(args)
 	printf("update, sl:size() == %d, update cnt=%d time=%.5f", map_len, map_len, benchmark(update, map_len))
 	printf("rank_range sl:size() == %d,cnt=%d(x, x+50) time=%.5f", map_len, map_len, benchmark(rank_range, map_len, map_len, 50))
 	printf("rank_of sl:size() == %d,cnt=%d,time=%.5f", map_len, map_len, benchmark(rank_of, map_len, map_len))
+	printf("get_by_rank sl:size() == %d,cnt=%d,time=%.5f", map_len, map_len, benchmark(get_by_rank, map_len, map_len))
 	printf("delete sl:size() == %d,cnt=%d,time=%.5f", map_len, map_len, benchmark(delete))
 end
 
