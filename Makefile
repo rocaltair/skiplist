@@ -1,7 +1,7 @@
 PLATFORM=$(shell uname)
 CC = gcc
 
-DEBUG_FLAG = -g3
+DEBUG_FLAG = -O3
 CFLAGS = -c $(DEBUG_FLAG) -Wall -Werror=declaration-after-statement -std=c89 -pedantic -fPIC
 LIBS = 
 LDFLAGS = $(DEBUG_FLAG) -Wall $(LIBS)

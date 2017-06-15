@@ -438,6 +438,7 @@ static int lua__del_by_rank(lua_State *L)
 {
 	int cur;
 	slNode_t *node;
+	double score;
 	sl_t *sl = CHECK_SL(L, 1);
 	int rank = luaL_checkinteger(L, 2);
 	if (rank <= 0 && rank > sl->size) {
@@ -454,6 +455,7 @@ static int lua__del_by_rank(lua_State *L)
 	}
 	if (node == NULL)
 		return 0;
+	score = node->score;
 	lua_getuservalue(L, 1);
 	lua_getfield(L, -1, "value_map");
 	lua_pushlightuserdata(L, (void *)node);
@@ -473,10 +475,19 @@ static int lua__del_by_rank(lua_State *L)
 
 	/*uservalue, value_map*/
 	lua_pushlightuserdata(L, (void *)node);
-	lua_pushnil(L);
-	lua_rawset(L, -3);
+	lua_rawget(L, -2);
+	/*uservalue, value_map, value*/
 
-	return 0;
+	lua_pushlightuserdata(L, (void *)node);
+	lua_pushnil(L);
+	lua_rawset(L, -4);
+
+	/*uservalue, value_map, value*/
+
+	lua_pushnumber(L, score);
+
+	/*uservalue, value_map, value, score*/
+	return 2;
 }
 
 static int lua__get_score(lua_State *L)
