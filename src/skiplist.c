@@ -14,7 +14,7 @@
 
 
 static void slInitNode(slNode_t *node, int level, void *udata, double score);
-static int internalComp(slNode_t *nodeA, slNode_t *nodeB, void *ctx);
+static int internalComp(slNode_t *nodeA, slNode_t *nodeB, sl_t *sl, void *ctx);
 static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update);
 
 int slRandomLevel()
@@ -25,7 +25,7 @@ int slRandomLevel()
 	return (level < SKIPLIST_MAXLEVEL) ? level : SKIPLIST_MAXLEVEL;
 }
 
-static int internalComp(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
+static int internalComp(slNode_t *nodeA, slNode_t *nodeB, sl_t *sl, void *ctx)
 {
 	ptrdiff_t d;
 	if (nodeA->score != nodeB->score)
@@ -125,7 +125,7 @@ void slInsertNode(sl_t *sl, slNode_t *node, void *ctx)
 	for (i = sl->level - 1; i >= 0; i--) {
         	rank[i] = i == (sl->level-1) ? 0 : rank[i+1];
 		while (p->level[i].next != NULL
-			&& (sl->comp(p->level[i].next, node, ctx) < 0)) {
+			&& (sl->comp(p->level[i].next, node, sl, ctx) < 0)) {
 			rank[i] += p->level[i].span;
 			p = p->level[i].next;
 		}
@@ -192,7 +192,7 @@ int slDeleteNode(sl_t *sl, slNode_t *node, void *ctx, slNode_t **pNode)
 	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
-		       sl->comp(p->level[i].next, node, ctx) < 0) {
+		       sl->comp(p->level[i].next, node, sl, ctx) < 0) {
 			p = p->level[i].next;
 		}
 		update[i] = p;
@@ -258,11 +258,11 @@ int slGetRank(sl_t *sl, slNode_t *node, void *ctx)
 	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
-			sl->comp(p->level[i].next, node, ctx) <= 0) {
+			sl->comp(p->level[i].next, node, sl, ctx) <= 0) {
 			traversed += p->level[i].span;
 			p = p->level[i].next;
 		}
-		if (sl->comp(p, node, ctx) == 0) {
+		if (sl->comp(p, node, sl, ctx) == 0) {
 			return traversed;
 		}
 	}

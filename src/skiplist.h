@@ -35,7 +35,7 @@ typedef struct slNode_s slNode_t;
 typedef struct skiplist_s sl_t;
 
 typedef void (*slFreeCb)(void *udata, void *ctx);
-typedef int (*slCompareCb)(slNode_t *nodeA, slNode_t *nodeB, void *ctx);
+typedef int (*slCompareCb)(slNode_t *nodeA, slNode_t *nodeB, sl_t *sl, void *ctx);
 
 struct levelNode_s {
 	slNode_t *next;

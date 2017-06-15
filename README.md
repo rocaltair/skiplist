@@ -115,6 +115,19 @@ see [benchemark](lua-bind/benchmark.lua)
 
 on macOS serria 10.12.2, macbook Mid-2012, 2.5GHz Intel Core i5
 
+
+### with default compare function, compare with score
+
+```
+insert, create() size=100000, time=0.16715
+update, sl:size() == 100000, update cnt=100000 time=0.13545
+rank_range sl:size() == 100000,cnt=100000(x, x+50) time=0.92219
+rank_of sl:size() == 100000,cnt=100000,time=0.14065
+get_by_rank sl:size() == 100000,cnt=100000,time=0.11291
+delete sl:size() == 100000,cnt=100000,time=0.13143
+```
+
+### with custom compare function
 ```
 insert, create() size=100000, time=0.97777
 update, sl:size() == 100000, update cnt=100000 time=1.86796
@@ -128,6 +141,7 @@ delete sl:size() == 100000,cnt=100000,time=0.96182
 
 ### lskiplist.new(comp_func)
 create a skiplist
+if comp_func is nil or boolean var, skiplist would compare with score
 ```
 example:
 

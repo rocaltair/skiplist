@@ -36,20 +36,22 @@
 
 #ifndef SL_ALWAYS_FETCH
 
-#define SL_COMP_INIT(L, slIdx, top) do {         \
+#define SL_COMP_INIT(L, slIdx, top, sl) do {     \
+	if (sl->comp == compByScore) break;      \
 	top = lua_gettop(L);                     \
 	lua_getuservalue(L, slIdx);              \
 	lua_getfield(L, -1, "value_map");        \
 	lua_getfield(L, -2, "comp_func");        \
 } while (0);
 
-#define SL_COMP_FINAL(L, top) do {      \
-	lua_settop(L, top); 		\
+#define SL_COMP_FINAL(L, top, sl) do {             \
+	if (sl->comp == compByScore) break;        \
+	lua_settop(L, top);                        \
 } while (0);
 
 #else
-# define SL_COMP_INIT(L, slIdx, top) (void )(top)
-# define SL_COMP_FINAL(L, top) (void)(top)
+# define SL_COMP_INIT(L, slIdx, top, sl) (void )(top)
+# define SL_COMP_FINAL(L, top, sl) (void)(top)
 #endif
 
 static slNode_t *luac__get_node(lua_State *L, int sl_idx, int node_idx)
@@ -82,18 +84,35 @@ static slNode_t *luac__get_node(lua_State *L, int sl_idx, int node_idx)
 	return NULL;
 }
 
-static int compInLua(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
+static int compByScore(slNode_t *nodeA, slNode_t *nodeB, sl_t *sl, void *ctx)
+{
+	ptrdiff_t diff;
+	double score_diff;
+	int asec = sl->udata == NULL ? 1 : -1;
+
+	diff = (const char *)nodeA - (const char *)nodeB;
+	if (diff == 0)
+		return 0;
+
+	score_diff = nodeA->score - nodeB->score;
+	if (fabs(score_diff) > EPSILON) {
+		if (score_diff * asec < 0)
+			return -1;
+		else
+			return 1;
+	}
+	return diff > 0 ? 1 : -1;
+}
+
+static int compInLua(slNode_t *nodeA, slNode_t *nodeB, sl_t *sl, void *ctx)
 {
 	lua_State *L = ctx;
 	int top = lua_gettop(L);
-	sl_t *sl = CHECK_SL(L, 1);
 	ptrdiff_t diff;
 	int idiff;
 	int ret;
 	int offset = 0;
 	double retf;
-
-	(void)sl;
 
 	diff = (const char *)nodeA - (const char *)nodeB;
 	if (diff == 0)
@@ -146,15 +165,29 @@ static int compInLua(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 static int lua__new(lua_State *L)
 {
 	sl_t *sl;
-	luaL_checktype(L, 1, LUA_TFUNCTION);
+
+	if (lua_isnone(L, 1))
+		lua_pushnil(L);
+	if (!lua_isfunction(L, 1) && !lua_isnil(L, 1) && !lua_isboolean(L, 1)) {
+		luaL_argcheck(L, 0, 1, "compare function|boolean<true for desc, false or nil for asec>");
+		return 0;
+	}
+
 	sl = (sl_t *)lua_newuserdata(L, sizeof(sl_t));
 	slInit(sl);
-	sl->comp = compInLua;
+
+	if (lua_isfunction(L, 1)) {
+		sl->comp = compInLua;
+	} else {
+		sl->comp = compByScore;
+		if (lua_toboolean(L, 1))
+			sl->udata = sl; 	/*NULL aesc, desc for others*/
+	}
 
 	luaL_getmetatable(L, CLASS_SKIPLIST);
 	lua_setmetatable(L, -2);
 
-	lua_newtable(L);
+	lua_createtable(L, 0, 3);
 		lua_pushvalue(L, 1);
 		lua_setfield(L, -2, "comp_func");
 
@@ -208,9 +241,9 @@ static int lua__insert(lua_State *L)
 		lua_rawset(L, -3);
 		lua_pop(L, 1);
 
-	SL_COMP_INIT(L, 1, cur);
+	SL_COMP_INIT(L, 1, cur, sl);
 	slInsertNode(sl, node, L);
-	SL_COMP_FINAL(L, cur);
+	SL_COMP_FINAL(L, cur, sl);
 	lua_pushlightuserdata(L, node);
 	return 1;
 }
@@ -224,9 +257,9 @@ static int lua__update(lua_State *L)
 	slNode_t *node = luac__get_node(L, 1, 2);
 	if (lua_isnoneornil(L, 3) && node != NULL) {
 		int ret;
-		SL_COMP_INIT(L, 1, cur);
+		SL_COMP_INIT(L, 1, cur, sl);
 		ret = slDeleteNode(sl, node, L, NULL);
-		SL_COMP_FINAL(L, cur);
+		SL_COMP_FINAL(L, cur, sl);
 		if (ret != 0) {
 			return luaL_error(L, "compare function implementation maybe error in %s:%d", __FUNCTION__, __LINE__);
 		}
@@ -251,9 +284,9 @@ static int lua__update(lua_State *L)
 	if (node != NULL) {
 		slNode_t *pNode = NULL;
 		int ret;
-		SL_COMP_INIT(L, 1, cur);
+		SL_COMP_INIT(L, 1, cur, sl);
 		ret = slDeleteNode(sl, node, L, &pNode);
-		SL_COMP_FINAL(L, cur);
+		SL_COMP_FINAL(L, cur, sl);
 		if (ret != 0) {
 			return luaL_error(L, "compare function implementation maybe error in %s:%d", __FUNCTION__, __LINE__);
 		}
@@ -277,9 +310,9 @@ static int lua__update(lua_State *L)
 			lua_rawset(L, -3);
 			lua_pop(L, 1);
 	}
-	SL_COMP_INIT(L, 1, cur);
+	SL_COMP_INIT(L, 1, cur, sl);
 	slInsertNode(sl, node, L);
-	SL_COMP_FINAL(L, cur);
+	SL_COMP_FINAL(L, cur, sl);
 	lua_pushlightuserdata(L, node);
 	return 1;
 }
@@ -315,9 +348,9 @@ static int lua__delete(lua_State *L)
 	if (node == NULL)
 		return 0;
 
-	SL_COMP_INIT(L, 1, cur);
+	SL_COMP_INIT(L, 1, cur, sl);
 	ret = slDeleteNode(sl, node, L, NULL);
-	SL_COMP_FINAL(L, cur);
+	SL_COMP_FINAL(L, cur, sl);
 	if (ret != 0) {
 		return luaL_error(L, "compare function implementation maybe error in %s:%d", __FUNCTION__, __LINE__);
 	}
@@ -464,9 +497,9 @@ static int lua__del_by_rank(lua_State *L)
 	lua_pushlightuserdata(L, (void *)node);
 	lua_rawget(L, -2);
 
-	SL_COMP_INIT(L, 1, cur);
+	SL_COMP_INIT(L, 1, cur, sl);
 	ret = slDeleteNode(sl, node, L, NULL);
-	SL_COMP_FINAL(L, cur);
+	SL_COMP_FINAL(L, cur, sl);
 	if (ret != 0) {
 		return luaL_error(L, "compare function implementation maybe error in %s:%d", __FUNCTION__, __LINE__);
 	}
@@ -530,9 +563,9 @@ static int lua__score_range(lua_State *L)
 		lua_rawget(L, -3);
 		lua_rawseti(L, -2, i++);
 	}
-	SL_COMP_INIT(L, 1, cur);
+	SL_COMP_INIT(L, 1, cur, sl);
 	rank = slGetRank(sl, node, L);
-	SL_COMP_FINAL(L, cur);
+	SL_COMP_FINAL(L, cur, sl);
 	lua_pushinteger(L, rank);
 	return 2;
 }
@@ -544,9 +577,9 @@ static int lua__rank_of(lua_State *L)
 	int cur;
 	slNode_t *node = luac__get_node(L, 1, 2);
 	if (node != NULL) {
-		SL_COMP_INIT(L, 1, cur);
+		SL_COMP_INIT(L, 1, cur, sl);
 		rank = slGetRank(sl, node, L);
-		SL_COMP_FINAL(L, cur);
+		SL_COMP_FINAL(L, cur, sl);
 	}
 	lua_pushinteger(L, rank);
 	return 1;
@@ -562,13 +595,18 @@ static int lua__rank_range(lua_State *L)
 
 	rankMax = rankMax >= sl->size ? sl->size : rankMax;
 
+	if (sl->size == 0) {
+		lua_createtable(L, 0, 0);
+		return 1;
+	}
+
 	if (rankMin < 0 || rankMin > rankMax)
 		return luaL_error(L, "range error!");
 
 	lua_getuservalue(L, 1);
 	lua_getfield(L, -1, "value_map");
 
-	lua_newtable(L);
+	lua_createtable(L, rankMax - rankMin + 1, 0);
 	SL_FOREACH_RANGE(sl, rankMin, rankMax, node, n) {
 		lua_pushlightuserdata(L, (void *)node);
 		lua_rawget(L, -3);
