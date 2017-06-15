@@ -22,10 +22,25 @@
 # endif
 #endif
 
+#define EPSILON 1e-15
+
 #define ENABLE_LSL_INDEX 1
 
 #define CLASS_SKIPLIST "cls{skiplist}"
 #define CHECK_SL(L, n) ((sl_t *)luaL_checkudata(L, n, CLASS_SKIPLIST))
+
+#define SL_COMP_INIT(L, slIdx, top) do {         \
+	top = lua_gettop(L);                     \
+	lua_getuservalue(L, slIdx);              \
+	lua_getfield(L, -1, "value_map");        \
+	lua_getfield(L, -2, "comp_func");        \
+} while (0);
+
+#define SL_COMP_FINAL(L, top) do {        \
+	lua_remove(L, top + 1);           \
+	lua_remove(L, top + 2);           \
+} while (0);
+
 
 static slNode_t *luac__get_node(lua_State *L, int sl_idx, int node_idx)
 {
@@ -57,17 +72,24 @@ static slNode_t *luac__get_node(lua_State *L, int sl_idx, int node_idx)
 	return NULL;
 }
 
-static int comp(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
+static int compInLua(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 {
 	lua_State *L = ctx;
 	sl_t *sl = CHECK_SL(L, 1);
 	int top = lua_gettop(L);
 	ptrdiff_t diff;
 	int idiff;
-	int fret, ret;
+	int ret;
 	double retf;
 
 	(void)sl;
+
+	diff = (const char *)nodeA - (const char *)nodeB;
+	if (diff == 0)
+		return 0;
+	else
+		idiff = diff > 0 ? 1 : -1;
+
 	lua_checkstack(L, 9);
 	lua_getuservalue(L, 1);
 	lua_getfield(L, -1, "value_map");
@@ -81,20 +103,17 @@ static int comp(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 	lua_pushnumber(L, nodeA->score);
 	lua_pushnumber(L, nodeB->score);	/*value_map, comp_func, valueA, valueB, scoreA, scoreB*/
 
-	diff = (const char *)nodeA - (const char *)nodeB;
-	if (diff == 0)
-		idiff = 0;
-	else
-		idiff = diff > 0 ? 1 : -1;
-
 	lua_pushnumber(L, idiff);	/*value_map, comp_func, valueA, valueB, scoreA, scoreB, idiff*/
 
-	fret = lua_pcall(L, 5, 1, 0);
-	if (fret != 0)
+	ret = lua_pcall(L, 5, 1, 0);
+	if (ret != 0)
 		return luaL_error(L, "comp error %s", lua_tostring(L, -1));
 	
+	if (!lua_isnumber(L, -1)) {
+		return luaL_error(L, "integer required for comp func");
+	}
 	retf = lua_tonumber(L, -1);
-	if (fabs(retf) < 1e-6)
+	if (fabs(retf) < EPSILON)
 		ret = 0;
 	else if (retf > 0)
 		ret = 1;
@@ -111,7 +130,7 @@ static int lua__new(lua_State *L)
 	luaL_checktype(L, 1, LUA_TFUNCTION);
 	sl = (sl_t *)lua_newuserdata(L, sizeof(sl_t));
 	slInit(sl);
-	sl->comp = comp;
+	sl->comp = compInLua;
 
 	luaL_getmetatable(L, CLASS_SKIPLIST);
 	lua_setmetatable(L, -2);
@@ -181,7 +200,10 @@ static int lua__update(lua_State *L)
 	sl_t *sl = CHECK_SL(L, 1);
 	slNode_t *node = luac__get_node(L, 1, 2);
 	if (lua_isnoneornil(L, 3) && node != NULL) {
-		slDeleteNode(sl, node, L, NULL);
+		int ret = slDeleteNode(sl, node, L, NULL);
+		if (ret != 0) {
+			return luaL_error(L, "compare function implementation maybe error in %s", __FUNCTION__);
+		}
 
 		lua_getuservalue(L, 1);
 
@@ -202,8 +224,10 @@ static int lua__update(lua_State *L)
 	score = luaL_checknumber(L, 3);
 	if (node != NULL) {
 		slNode_t *pNode = NULL;
-		slDeleteNode(sl, node, L, &pNode);
-		assert(pNode == node);
+		int ret = slDeleteNode(sl, node, L, &pNode);
+		if (ret != 0) {
+			return luaL_error(L, "compare function implementation maybe error in %s", __FUNCTION__);
+		}
 		node->score = score;
 	} else {
 		level = slRandomLevel();
@@ -254,12 +278,16 @@ static int lua__index(lua_State *L)
 
 static int lua__delete(lua_State *L)
 {
+	int ret;
 	sl_t *sl = CHECK_SL(L, 1);
 	slNode_t *node = luac__get_node(L, 1, 2);
 	if (node == NULL)
 		return 0;
 
-	slDeleteNode(sl, node, L, NULL);
+	ret = slDeleteNode(sl, node, L, NULL);
+	if (ret != 0) {
+		return luaL_error(L, "compare function implementation maybe error in %s", __FUNCTION__);
+	}
 
 	lua_getuservalue(L, 1);
 
@@ -455,12 +483,11 @@ static int lua__score_range(lua_State *L)
 
 static int lua__rank_of(lua_State *L)
 {
-	int rank;
+	int rank = 0;
 	sl_t *sl = CHECK_SL(L, 1);
 	slNode_t *node = luac__get_node(L, 1, 2);
-	if (node == NULL)
-		return 0;
-	rank = slGetRank(sl, node, L);
+	if (node != NULL)
+		rank = slGetRank(sl, node, L);
 	lua_pushinteger(L, rank);
 	return 1;
 }
@@ -485,7 +512,7 @@ static int lua__rank_range(lua_State *L)
 	SL_FOREACH_RANGE(sl, rankMin, rankMax, node, n) {
 		lua_pushlightuserdata(L, (void *)node);
 		lua_rawget(L, -3);
-		lua_rawseti(L, -2, rankMin + n);
+		lua_rawseti(L, -2, n + 1);
 	}
 	return 1;
 }
@@ -598,5 +625,7 @@ int luaopen_lskiplist(lua_State* L)
 	};
 	opencls__skiplist(L);
 	luaL_newlib(L, lfuncs);
+	lua_pushnumber(L, EPSILON);
+	lua_setfield(L, -2, "EPSILON");
 	return 1;
 }

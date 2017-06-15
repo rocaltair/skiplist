@@ -240,7 +240,7 @@ int slGetRank(sl_t *sl, slNode_t *node, void *ctx)
 	slNode_t *p;
 	int i;
 	if (node == NULL)
-		return sl->size + 1;
+		return 0;
 	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
@@ -252,7 +252,7 @@ int slGetRank(sl_t *sl, slNode_t *node, void *ctx)
 			return traversed;
 		}
 	}
-	return sl->size;
+	return 0;
 }
 
 int slDeleteByRankRange(sl_t *sl, int rankMin, int rankMax, slFreeCb freeCb, void *ctx)
