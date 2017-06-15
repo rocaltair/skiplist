@@ -107,7 +107,21 @@ greater or equal than score;
 less or equal than score;
 
 ## lua-bind
+
 see [test](lua-bind/test.lua)
+see [benchemark](lua-bind/benchmark.lua)
+
+## Benchmark for lua-bind
+
+on macOS serria 10.12.2, macbook Mid-2012, 2.5GHz Intel Core i5
+
+```
+insert, create, size=100000, time=0.73706
+update, sl:size() == 100000, update cnt=100000 time=1.40672
+rank_range sl:size() == 100000,cnt=100000(x, x+50) time=1.03918
+rank_of sl:size() == 100000,time=0.95955
+delete sl:size() == 100000,time=0.68579
+```
 
 ## API for Lua
 
