@@ -90,6 +90,7 @@ static int compInLua(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 	ptrdiff_t diff;
 	int idiff;
 	int ret;
+	int offset = 0;
 	double retf;
 
 	(void)sl;
@@ -105,6 +106,7 @@ static int compInLua(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 	lua_getfield(L, -1, "value_map");
 	lua_getfield(L, -2, "comp_func"); 	/*value_map, comp_func*/
 #else
+	offset = 1;
 	lua_pushvalue(L, -1);
 	if (!lua_isfunction(L, -1)) {
 		const char *typename = luaL_typename(L, -1);
@@ -112,10 +114,10 @@ static int compInLua(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 	}
 #endif
 		lua_pushlightuserdata(L, nodeA);
-		lua_rawget(L, -3);		/*value_map, comp_func, valueA*/
+		lua_rawget(L, -3 - offset);		/*value_map, comp_func, valueA*/
 
 		lua_pushlightuserdata(L, nodeB);
-		lua_rawget(L, -4);		/*value_map, comp_func, valueA, valueB*/
+		lua_rawget(L, -4 - offset);		/*value_map, comp_func, valueA, valueB*/
 
 	lua_pushnumber(L, nodeA->score);
 	lua_pushnumber(L, nodeB->score);	/*value_map, comp_func, valueA, valueB, scoreA, scoreB*/
@@ -226,7 +228,7 @@ static int lua__update(lua_State *L)
 		ret = slDeleteNode(sl, node, L, NULL);
 		SL_COMP_FINAL(L, cur);
 		if (ret != 0) {
-			return luaL_error(L, "compare function implementation maybe error in %s", __FUNCTION__);
+			return luaL_error(L, "compare function implementation maybe error in %s:%d", __FUNCTION__, __LINE__);
 		}
 
 		lua_getuservalue(L, 1);
@@ -253,7 +255,7 @@ static int lua__update(lua_State *L)
 		ret = slDeleteNode(sl, node, L, &pNode);
 		SL_COMP_FINAL(L, cur);
 		if (ret != 0) {
-			return luaL_error(L, "compare function implementation maybe error in %s", __FUNCTION__);
+			return luaL_error(L, "compare function implementation maybe error in %s:%d", __FUNCTION__, __LINE__);
 		}
 		node->score = score;
 	} else {
@@ -317,7 +319,7 @@ static int lua__delete(lua_State *L)
 	ret = slDeleteNode(sl, node, L, NULL);
 	SL_COMP_FINAL(L, cur);
 	if (ret != 0) {
-		return luaL_error(L, "compare function implementation maybe error in %s", __FUNCTION__);
+		return luaL_error(L, "compare function implementation maybe error in %s:%d", __FUNCTION__, __LINE__);
 	}
 
 	lua_getuservalue(L, 1);
@@ -437,6 +439,7 @@ static int lua__get_by_rank(lua_State *L)
 static int lua__del_by_rank(lua_State *L)
 {
 	int cur;
+	int ret;
 	slNode_t *node;
 	double score;
 	sl_t *sl = CHECK_SL(L, 1);
@@ -462,8 +465,11 @@ static int lua__del_by_rank(lua_State *L)
 	lua_rawget(L, -2);
 
 	SL_COMP_INIT(L, 1, cur);
-	slDeleteNode(sl, node, L, NULL);
+	ret = slDeleteNode(sl, node, L, NULL);
 	SL_COMP_FINAL(L, cur);
+	if (ret != 0) {
+		return luaL_error(L, "compare function implementation maybe error in %s:%d", __FUNCTION__, __LINE__);
+	}
 
 	/*uservalue, value_map, value*/
 	lua_getfield(L, -3, "node_map");

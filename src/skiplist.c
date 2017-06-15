@@ -2,7 +2,16 @@
 #include <float.h>
 #include <stddef.h>
 #include <assert.h>
+#include <stdio.h>
 #include "skiplist.h"
+
+#define ENABLE_SL_DEBUG 0
+#if (ENABLE_SL_DEBUG > 0)
+# define DLOG(fmt, ...) fprintf(stderr, "<skiplist>" fmt "\n", ##__VA_ARGS__)
+#else
+# define DLOG(...)
+#endif
+
 
 static void slInitNode(slNode_t *node, int level, void *udata, double score);
 static int internalComp(slNode_t *nodeA, slNode_t *nodeB, void *ctx);
@@ -177,6 +186,8 @@ int slDeleteNode(sl_t *sl, slNode_t *node, void *ctx, slNode_t **pNode)
 {
 	int i;
 	slNode_t *p;
+	slNode_t *next;
+
 	slNode_t *update[SKIPLIST_MAXLEVEL];
 	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
@@ -186,9 +197,12 @@ int slDeleteNode(sl_t *sl, slNode_t *node, void *ctx, slNode_t **pNode)
 		}
 		update[i] = p;
 	}
-	p = p->level[0].next;
-	if (p != node)
+	next = p->level[0].next;
+	if (next != node) {
+		DLOG("delete error,p=%p,node=%p,next=%p\n", (void *)p, (void *)node, (void *)next);
 		return -1;
+	}
+	p = next;
 	slDeleteNodeUpdate(sl, p, update);
 	if (pNode != NULL)
 		*pNode = p;

@@ -1,7 +1,14 @@
 lskiplist = require "lskiplist"
 
+local is_Update = false
 function comp(a, b, scoreA, scoreB, pdiff)
-	return scoreA - scoreB
+	if scoreA ~= scoreB then
+		return scoreA - scoreB
+	end
+	if a ~= b then
+		return a - b
+	end
+	return pdiff
 end
 
 local map = {}
@@ -64,6 +71,7 @@ function main(args)
 		map[i] = math.random()
 	end
 	printf("insert, create() size=%d, time=%.5f", map_len, benchmark(insert, map_len))
+	is_Update = true
 	printf("update, sl:size() == %d, update cnt=%d time=%.5f", map_len, map_len, benchmark(update, map_len))
 	printf("rank_range sl:size() == %d,cnt=%d(x, x+50) time=%.5f", map_len, map_len, benchmark(rank_range, map_len, map_len, 50))
 	printf("rank_of sl:size() == %d,cnt=%d,time=%.5f", map_len, map_len, benchmark(rank_of, map_len, map_len))
