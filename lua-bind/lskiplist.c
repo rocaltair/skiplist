@@ -215,7 +215,7 @@ static int lua__insert(lua_State *L)
 	sl_t *sl;
 	slNode_t *node;
 	int level;
-	int cur;
+	int cur = 0;
 	
 	sl = CHECK_SL(L, 1);
 	node = luac__get_node(L, 1, 2);
@@ -252,7 +252,7 @@ static int lua__update(lua_State *L)
 {
 	int level;
 	double score;
-	int cur;
+	int cur = 0;
 	sl_t *sl = CHECK_SL(L, 1);
 	slNode_t *node = luac__get_node(L, 1, 2);
 	if (lua_isnoneornil(L, 3) && node != NULL) {
@@ -342,7 +342,8 @@ static int lua__index(lua_State *L)
 
 static int lua__delete(lua_State *L)
 {
-	int ret, cur;
+	int ret;
+	int cur = 0;
 	sl_t *sl = CHECK_SL(L, 1);
 	slNode_t *node = luac__get_node(L, 1, 2);
 	if (node == NULL)
@@ -471,7 +472,7 @@ static int lua__get_by_rank(lua_State *L)
 
 static int lua__del_by_rank(lua_State *L)
 {
-	int cur;
+	int cur = 0;
 	int ret;
 	slNode_t *node;
 	double score;
@@ -544,7 +545,7 @@ static int lua__score_range(lua_State *L)
 {
 	int i;
 	slNode_t *pMin, *pMax, *node;
-	int cur;
+	int cur = 0;
 	int rank;
 	sl_t *sl = CHECK_SL(L, 1);
 	double min = luaL_checknumber(L, 2);
@@ -574,7 +575,7 @@ static int lua__rank_of(lua_State *L)
 {
 	int rank = 0;
 	sl_t *sl = CHECK_SL(L, 1);
-	int cur;
+	int cur = 0;
 	slNode_t *node = luac__get_node(L, 1, 2);
 	if (node != NULL) {
 		SL_COMP_INIT(L, 1, cur, sl);
