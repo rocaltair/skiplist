@@ -1,9 +1,10 @@
 PLATFORM=$(shell uname)
 CC = gcc
 
-CFLAGS = -c -g3 -Wall -Werror=declaration-after-statement -std=c89 -pedantic -fPIC
+DEBUG_FLAG = -g3
+CFLAGS = -c $(DEBUG_FLAG) -Wall -Werror=declaration-after-statement -std=c89 -pedantic -fPIC
 LIBS = 
-LDFLAGS = -g3 -Wall $(LIBS)
+LDFLAGS = $(DEBUG_FLAG) -Wall $(LIBS)
 
 BIN = test/test
 TEST_OBJS = test/main.o src/skiplist.o

@@ -21,7 +21,7 @@ local sl = lskiplist.new(comp)
 function insert()
 	local len = #map
 	for i=1, len do
-		sl[i] = map[i]
+		sl:insert(i, map[i])
 	end
 end
 
