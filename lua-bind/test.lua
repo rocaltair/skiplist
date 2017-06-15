@@ -21,14 +21,35 @@ for rank, v in pairs(t) do
 	print("sorted", rank, v, sl:get_score(v))
 end
 
-sl:del_by_rank(5)
+local delV, delScore = sl:del_by_rank(5)
+print("del_by_rank data:", delV, delScore)
 
 local s, e = 2, 8
-local t = sl:rank_range(s, e)
-for rank = s, e do
-	local v = t[rank]
+local list = sl:rank_range(s, e)
+for i, v in pairs(list) do
 	local score = sl:get_score(v)
-	print("after delete", rank, v, sl:get_score(v))
+	print("after delete", i + s - 1, v, score)
 end
 
 print(sl:rank_of(7))
+sl:update(7, -1)
+for i, v in pairs(sl:rank_range()) do
+	print("rank", i, v, sl:get_score(v))
+end
+for rank, v, score in sl:rank_pairs(1, 5) do
+	print("rank_pairs", rank, v, score)
+end
+sl:update(7, 128)
+sl:update(99, 128)
+sl[234] = 127
+print("score of 7", sl[7])
+
+sl[234] = 125
+sl[3] = nil
+
+print("size", #sl, sl:size())
+local srange, rankMin = sl:score_range(20, 679)
+for i, v in pairs(srange) do
+	print("score range of", rankMin + i - 1, v, sl:get_score(v))
+end
+

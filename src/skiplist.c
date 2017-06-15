@@ -1,52 +1,51 @@
 #include <stdlib.h>
 #include <float.h>
 #include <stddef.h>
+#include <assert.h>
 #include "skiplist.h"
 
+static void slInitNode(slNode_t *node, int level, void *udata, double score);
+static int internalComp(slNode_t *nodeA, slNode_t *nodeB, void *ctx);
+static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update);
 
 int slRandomLevel()
 {
 	int level = 1;
-	while((random() & 0xffff) < (SKIPLIST_P * 0xffff))
+	while((rand() & 0xffff) < (SKIPLIST_P * 0xffff))
 		level += 1;
 	return (level < SKIPLIST_MAXLEVEL) ? level : SKIPLIST_MAXLEVEL;
 }
-
-static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update);
 
 static int internalComp(slNode_t *nodeA, slNode_t *nodeB, void *ctx)
 {
 	ptrdiff_t d;
 	if (nodeA->score != nodeB->score)
 		return nodeA->score - nodeB->score < 0 ? -1 : 1;
+
 	d = (const char *)(nodeA->udata == NULL ? nodeA : nodeA->udata)
 			- (const char *)(nodeB->udata == NULL ? nodeB : nodeB->udata);
+
 	if (d == 0)
 		return 0;
 	return d < 0 ? -1 : 1;
 }
 
-int slInit(sl_t *sl)
+void slInit(sl_t *sl)
 {
-	sl->head = slCreateNode(SKIPLIST_MAXLEVEL, NULL, DBL_MIN);
-	if (sl->head == NULL) {
-		return -1;
-	}
 	sl->level = 1;
 	sl->size = 0;
-	sl->head->prev = NULL;
 	sl->tail = NULL;
 	sl->comp = internalComp;
-	return 0;
+	slInitNode(SL_HEAD(sl), SKIPLIST_MAXLEVEL, NULL, DBL_MIN);
 }
 
 sl_t * slCreate()
 {
 	sl_t *sl = malloc(sizeof(*sl));
-	if (sl == NULL || slInit(sl) != 0) {
-		free(sl);
+	if (sl == NULL) {
 		return NULL;
 	}
+	slInit(sl);
 	sl->udata = NULL;
 	return sl;
 }
@@ -62,7 +61,7 @@ void slDestroy(sl_t *sl, slFreeCb freeCb, void *ctx)
 {
 	slNode_t *node;
 	slNode_t *next;
-	for (node = sl->head; node != NULL; node = next) {
+	for (node = SL_NEXT(SL_HEAD(sl)); node != NULL; node = next) {
 		next = node->level[0].next;
 		slFreeNode(node, freeCb, ctx);
 	}
@@ -74,13 +73,9 @@ void slFree(sl_t *sl, slFreeCb freeCb, void *ctx)
 	free(sl);
 }
 
-slNode_t * slCreateNode(int level, void *udata, double score)
+static void slInitNode(slNode_t *node, int level, void *udata, double score)
 {
 	int i;
-	slNode_t *node = malloc(sizeof(*node) + sizeof(struct levelNode_s) * (level - 1));
-	if (node == NULL)
-		goto finished;
-
 	node->score = score;
 	node->udata = udata;
 	node->prev = NULL;
@@ -89,6 +84,15 @@ slNode_t * slCreateNode(int level, void *udata, double score)
 		node->level[i].next = NULL;
 		node->level[i].span = 0;
 	}
+}
+
+slNode_t * slCreateNode(int level, void *udata, double score)
+{
+	size_t node_sz = sizeof(slNode_t) + sizeof(struct levelNode_s) * (level - 1);
+	slNode_t *node = malloc(node_sz);
+	if (node == NULL)
+		goto finished;
+	slInitNode(node, level, udata, score);
 finished:
 	return node;
 }
@@ -108,7 +112,7 @@ void slInsertNode(sl_t *sl, slNode_t *node, void *ctx)
 	slNode_t *p;
 	int rank[SKIPLIST_MAXLEVEL];
 	int i;
-	p = sl->head;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
         	rank[i] = i == (sl->level-1) ? 0 : rank[i+1];
 		while (p->level[i].next != NULL
@@ -122,7 +126,7 @@ void slInsertNode(sl_t *sl, slNode_t *node, void *ctx)
 	if (level > sl->level) {
 		for (i = sl->level; i < level; i++) {
 			rank[i] = 0;
-			update[i] = sl->head;
+			update[i] = SL_HEAD(sl);
 			update[i]->level[i].span = sl->size;
 		}
 		sl->level = level;
@@ -137,7 +141,7 @@ void slInsertNode(sl_t *sl, slNode_t *node, void *ctx)
 	for (i = level; i < sl->level; i++) {
 		update[i]->level[i].span++;
 	}
-	node->prev = (update[0] == sl->head) ? NULL : update[0];
+	node->prev = (update[0] == SL_HEAD(sl)) ? NULL : update[0];
 	if (node->level[0].next)
 		node->level[0].next->prev = node;
 	else
@@ -161,7 +165,7 @@ static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update)
 	} else {
 		sl->tail = node->prev;
 	}
-	while(sl->level > 1 && sl->head->level[sl->level-1].next == NULL)
+	while(sl->level > 1 && SL_HEAD(sl)->level[sl->level-1].next == NULL)
 		sl->level--;
 	sl->size--;
 }
@@ -174,7 +178,7 @@ int slDeleteNode(sl_t *sl, slNode_t *node, void *ctx, slNode_t **pNode)
 	int i;
 	slNode_t *p;
 	slNode_t *update[SKIPLIST_MAXLEVEL];
-	p = sl->head;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
 		       sl->comp(p->level[i].next, node, ctx) < 0) {
@@ -198,8 +202,7 @@ slNode_t * slGetNodeByRank(sl_t *sl, int rank)
 	int traversed = 0;
 	slNode_t *p;
 	int i;
-	p = sl->head;
-	rank++;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL && p->level[i].span + traversed <= rank) {
 			traversed += p->level[i].span;
@@ -237,8 +240,8 @@ int slGetRank(sl_t *sl, slNode_t *node, void *ctx)
 	slNode_t *p;
 	int i;
 	if (node == NULL)
-		return sl->size + 1;
-	p = sl->head;
+		return 0;
+	p = SL_HEAD(sl);
 	for (i = sl->level - 1; i >= 0; i--) {
 		while (p->level[i].next != NULL &&
 			sl->comp(p->level[i].next, node, ctx) <= 0) {
@@ -246,23 +249,75 @@ int slGetRank(sl_t *sl, slNode_t *node, void *ctx)
 			p = p->level[i].next;
 		}
 		if (sl->comp(p, node, ctx) == 0) {
-			return traversed - 1;
+			return traversed;
 		}
 	}
-	return sl->size;
-}
-
-int slDeleteRankRange(sl_t *sl, int rankBegin, int rankEnd, slFreeCb cb, void *ctx)
-{
 	return 0;
 }
 
-slNode_t * slFirstInRange(sl_t *sl, double min, double max)
+int slDeleteByRankRange(sl_t *sl, int rankMin, int rankMax, slFreeCb freeCb, void *ctx)
 {
-	return NULL;
+	slNode_t *update[SKIPLIST_MAXLEVEL], *node;
+	int traversed = 0;
+	int removed = 0;
+	int i;
+
+	assert(1 <= rankMin && rankMin <= rankMax && rankMin <= sl->size);
+	assert(1 <= rankMax && rankMin <= rankMax && rankMax <= sl->size);
+
+	node = SL_HEAD(sl);
+	for (i = sl->level-1; i >= 0; i--) {
+		while (node->level[i].next && (traversed + node->level[i].span) < rankMin) {
+			traversed += node->level[i].span;
+			node = node->level[i].next;
+		}
+		update[i] = node;
+	}
+
+	traversed++;
+	node = node->level[0].next;
+	while (node && traversed <= rankMax) {
+		slNode_t *next = node->level[0].next;
+		slDeleteNode(sl, node, NULL, update);
+		slFreeNode(node, freeCb, ctx);
+		removed++;
+		traversed++;
+		node = next;
+	}
+	return removed;
 }
 
-slNode_t * slLastInRange(sl_t *sl, double min, double max)
+/**
+ * greater or equal than score
+ */
+slNode_t * slFirstGEThan(sl_t *sl, double score)
 {
-	return NULL;
+	int i;
+	slNode_t *p;
+	p = SL_HEAD(sl);
+	for (i = sl->level - 1; i >= 0; i--) {
+		while (p->level[i].next != NULL &&
+		       p->level[i].next->score < score) {
+			p = p->level[i].next;
+		}
+	}
+	return p->level[0].next;
 }
+
+/**
+ * less or equal than score
+ */
+slNode_t * slLastLEThan(sl_t *sl, double score)
+{
+	int i;
+	slNode_t *p;
+	p = SL_HEAD(sl);
+	for (i = sl->level - 1; i >= 0; i--) {
+		while (p->level[i].next != NULL &&
+		       p->level[i].next->score <= score) {
+			p = p->level[i].next;
+		}
+	}
+	return p;
+}
+
