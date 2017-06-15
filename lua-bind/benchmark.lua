@@ -59,8 +59,8 @@ function main(args)
 	printf("insert, create() size=%d, time=%.5f", map_len, benchmark(insert, map_len))
 	printf("update, sl:size() == %d, update cnt=%d time=%.5f", map_len, map_len, benchmark(update, map_len))
 	printf("rank_range sl:size() == %d,cnt=%d(x, x+50) time=%.5f", map_len, map_len, benchmark(rank_range, map_len, map_len, 50))
-	printf("rank_of sl:size() == %d,time=%.5f", map_len, benchmark(rank_of, map_len, map_len))
-	printf("delete sl:size() == %d,time=%.5f", map_len, benchmark(delete))
+	printf("rank_of sl:size() == %d,cnt=%d,time=%.5f", map_len, map_len, benchmark(rank_of, map_len, map_len))
+	printf("delete sl:size() == %d,cnt=%d,time=%.5f", map_len, map_len, benchmark(delete))
 end
 
 main(arg)
