@@ -70,7 +70,7 @@ void slDestroy(sl_t *sl, slFreeCb freeCb, void *ctx)
 {
 	slNode_t *node;
 	slNode_t *next;
-	for (node = SL_NEXT(SL_HEAD(sl)); node != NULL; node = next) {
+	for (node = SL_FIRST(sl); node != NULL; node = next) {
 		next = node->level[0].next;
 		slFreeNode(node, freeCb, ctx);
 	}
@@ -161,6 +161,7 @@ void slInsertNode(sl_t *sl, slNode_t *node, void *ctx)
 static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update)
 {
 	int i;
+	slNode_t *header;
 	for (i = 0; i < sl->level; i++) {
 		if (update[i]->level[i].next == node) {
 			update[i]->level[i].span += node->level[i].span - 1;
@@ -174,7 +175,8 @@ static void slDeleteNodeUpdate(sl_t *sl, slNode_t *node, slNode_t **update)
 	} else {
 		sl->tail = node->prev;
 	}
-	while(sl->level > 1 && SL_HEAD(sl)->level[sl->level-1].next == NULL)
+	header = SL_HEAD(sl);
+	while(sl->level > 1 && header->level[sl->level-1].next == NULL)
 		sl->level--;
 	sl->size--;
 }

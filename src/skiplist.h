@@ -14,7 +14,7 @@ extern "C" {
 
 #define SL_HEAD(sl) ((slNode_t *)&(sl->head))
 
-#define SL_FIRST(sl) (SL_NEXT(SL_HEAD(sl)))
+#define SL_FIRST(sl) (sl->head.level[0].next)
 #define SL_LAST(sl) ((slNode_t *)sl->tail)
 
 #define SL_FOREACH_RANGE(sl, rankMin, rankMax, node, n) \
