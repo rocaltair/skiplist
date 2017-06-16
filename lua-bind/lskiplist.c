@@ -97,10 +97,6 @@ static int compByScore(slNode_t *nodeA, slNode_t *nodeB, sl_t *sl, void *ctx)
 	double score_diff;
 	int asec = sl->udata == NULL ? 1 : -1;
 
-	diff = (const char *)nodeA - (const char *)nodeB;
-	if (diff == 0)
-		return 0;
-
 	score_diff = nodeA->score - nodeB->score;
 	if (fabs(score_diff) > EPSILON) {
 		if (score_diff * asec < 0)
@@ -108,6 +104,9 @@ static int compByScore(slNode_t *nodeA, slNode_t *nodeB, sl_t *sl, void *ctx)
 		else
 			return 1;
 	}
+	diff = (const char *)nodeA - (const char *)nodeB;
+	if (diff == 0)
+		return 0;
 	return diff > 0 ? 1 : -1;
 }
 
