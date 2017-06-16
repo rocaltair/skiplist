@@ -54,6 +54,13 @@
 # define SL_COMP_FINAL(L, top, sl) (void)(top)
 #endif
 
+#define ENABLE_LSL_DEBUG
+#ifdef ENABLE_LSL_DEBUG
+# define DLOG(fmt, ...) fprintf(stderr, "<lskiplist>" fmt "\n", ##__VA_ARGS__)
+#else
+# define DLOG(...)
+#endif
+
 static slNode_t *luac__get_node(lua_State *L, int sl_idx, int node_idx)
 {
 	sl_t *sl;
@@ -180,8 +187,7 @@ static int lua__new(lua_State *L)
 		sl->comp = compInLua;
 	} else {
 		sl->comp = compByScore;
-		if (lua_toboolean(L, 1))
-			sl->udata = sl; 	/*NULL aesc, desc for others*/
+		sl->udata = lua_toboolean(L, 1) ? sl : NULL;
 	}
 
 	luaL_getmetatable(L, CLASS_SKIPLIST);
@@ -429,7 +435,7 @@ static int lua__rank_pairs(lua_State *L)
 	int rankMin = luaL_optinteger(L, 2, 1);
 	int rankMax = luaL_optinteger(L, 3, sl->size);
 
-	if (rankMin < 0 || rankMin > rankMax || rankMax > sl->size)
+	if (rankMin < 1 || rankMin > rankMax || rankMax > sl->size)
 		return luaL_error(L,
 				  "range error! range should be[1, %d],but[%d, %d]",
 				  sl->size, rankMin, rankMax);
@@ -448,7 +454,7 @@ static int lua__get_by_rank(lua_State *L)
 	slNode_t *node;
 	sl_t *sl = CHECK_SL(L, 1);
 	int rank = luaL_checkinteger(L, 2);
-	if (rank <= 0 && rank > sl->size) {
+	if (rank <= 0 || rank > sl->size) {
 		lua_pushnil(L);
 		lua_pushliteral(L, "err index");
 		return 2;
@@ -478,7 +484,7 @@ static int lua__del_by_rank(lua_State *L)
 	double score;
 	sl_t *sl = CHECK_SL(L, 1);
 	int rank = luaL_checkinteger(L, 2);
-	if (rank <= 0 && rank > sl->size) {
+	if (rank <= 0 || rank > sl->size) {
 		lua_pushnil(L);
 		lua_pushliteral(L, "err index");
 		return 2;
@@ -565,10 +571,11 @@ static int lua__score_range(lua_State *L)
 		lua_rawseti(L, -2, i++);
 	}
 	SL_COMP_INIT(L, 1, cur, sl);
-	rank = slGetRank(sl, node, L);
+	rank = slGetRank(sl, pMin, L);
 	SL_COMP_FINAL(L, cur, sl);
 	lua_pushinteger(L, rank);
-	return 2;
+	lua_pushinteger(L, rank + i - 2);
+	return 3;
 }
 
 static int lua__rank_of(lua_State *L)
@@ -592,16 +599,14 @@ static int lua__rank_range(lua_State *L)
 	sl_t *sl = CHECK_SL(L, 1);
 	slNode_t *node;
 	int rankMin = luaL_optinteger(L, 2, 1);
-	int rankMax = luaL_optinteger(L, 3, INT_MAX);
-
-	rankMax = rankMax >= sl->size ? sl->size : rankMax;
+	int rankMax = luaL_optinteger(L, 3, sl->size);
 
 	if (sl->size == 0) {
 		lua_createtable(L, 0, 0);
 		return 1;
 	}
 
-	if (rankMin < 0 || rankMin > rankMax)
+	if (rankMin <= 0 || rankMin > rankMax || rankMax > sl->size)
 		return luaL_error(L, "range error!");
 
 	lua_getuservalue(L, 1);
@@ -653,13 +658,22 @@ static void deleteCb(void *udata, void *ctx)
 	lua_State *L = ctx;
 	int top = lua_gettop(L);
 	/* node->udata = node, see lua__insert */ 
+
+	/*sl, min, max, uservalue, value_map, node_map, udata(node)*/
 	lua_pushlightuserdata(L, udata);
+
+	/*sl, min, max, uservalue, value_map, node_map, value*/
 	lua_rawget(L, 5);
+
+	/*sl, min, max, uservalue, value_map, node_map, value, nil*/
 	lua_pushnil(L);
 	lua_rawset(L, 6);
-	lua_pushnil(L);
+	/*sl, min, max, uservalue, value_map, node_map*/
+
+	/*sl, min, max, uservalue, value_map, node_map, nil*/
 	/* node->udata = node, see lua__insert */ 
 	lua_pushlightuserdata(L, udata);
+	lua_pushnil(L);
 	lua_rawset(L, 5);
 	lua_settop(L, top);
 }
