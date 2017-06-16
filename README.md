@@ -108,12 +108,15 @@ less or equal than score;
 
 ## lua-bind
 
+see [example](lua-bind/example.lua)
+
 see [test](lua-bind/test.lua)
+
 see [benchemark](lua-bind/benchmark.lua)
 
 ## Benchmark for lua-bind
 
-on macOS serria 10.12.2, macbook Mid-2012, 2.5GHz Intel Core i5
+on macOS sierra 10.12.2, macbook Mid-2012, 2.5GHz Intel Core i5
 
 
 ### with default compare function, compare with score
@@ -198,9 +201,9 @@ return an table {[rankMin] = data1, [rankMin + 1] = data2, ..., [rankMax] = data
 it's the same with sl[data]
 
 ### sl:score_range(scoreMin, scoreMax)
-return map, rankMin
+return list, rankMin, rankMax
 
-map = {[rankMin] = data1, [rankMin + 1] = data2, ..., [rankMax] = dataN}
+list = {data1, data2, ..., dataN}
 
 ### sl:next(data)
 return next value for rank of data
@@ -227,4 +230,4 @@ end
 ```
 
 ## TODO
-memory pool for slNode_t allocation
+multi thread support
